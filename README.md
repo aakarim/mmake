@@ -1,64 +1,58 @@
-# MMake (Mono Make)
-## Introduction
+# MMake (Mono Make): Monorepo Task Runner
+    
+## About
 Mono Make is a simple monorepo task runner based on top of Make. It allows you to split your Makefiles up across multiple files, and provides a few extra features to make your life easier when working with scripts in monorepos.
 
 The goals here are to:
-- Make it easy to split your Makefiles up across multiple files and directories
-- Make it easy to discover and run targets
-- Make it easy to run scripts from anywhere in your monorepo
-- Make it easy to manage build outputs & code generation
-
-This is still a work in progress, so there are a few features that are missing.
+- Simplify the distribution of Makefiles across various files and directories.
+- Make it easy to discover and run targets.
+- Enable scripts to run anywhere within your monorepo.
+- Manage build outputs & code generation
 
 ## Motivation
-Make is a great tool for building software, but it has a few limitations when working with monorepos. The main limitation it is arduous to deal with multiple Makefiles. This means that if you want to split your Makefile up across multiple files, you need to use `include` statements or use -f to switch between files. This can get messy very quickly, and it can be hard to keep track of which Makefiles are included where.
+Despite the capabilities of Make, managing multiple Makefiles in monorepos can be complicated. MMake allows helps you distribute Makefiles across multiple files and directories. It automatically includes these files, inserts variables pointing to common directories for build outputs, and provides autocomplete for targets.
 
-MMake provides a simple solution to this problem. It allows you to split your Makefiles up across multiple files and directories, and it will automatically include them for you, inject variables that point to common directories for build outputs. It even provide autocomplete for targets.
-
-If you're just starting out with a monorepo and want a unified tool to handle all your scripts this is probably a good place to start. If you're already using Make and want to split your Makefiles up across multiple files, this is also a good place to start.
+If you're setting up a monorepo and need a unified script handling tool, MMake could be useful. It's also beneficial if you're using Make and looking to distribute your Makefiles across various files.
 
 ## Installation
 Requirements:
 - Go 1.18 or higher
 
-### Mac
+### Mac & Linux/WSL
 ```bash
 go install github.com/aakarim/mmake
 mmake init # This will add a WORKSPACE.mmake file
 ```
 
-### Linux or WSL
+### Autocompletion 
+Run the following command to enable autocompletion for Mono Make:
 ```bash
-go install github.com/aakarim/mmake
-mmake init # This will add a WORKSPACE.mmake file
+# This will be removed when your terminal resets. Add this command to your .bashrc or .zshrc to enable persistent autocompletion.
+source <(mmake completion)
+```
+
+```bash
+mmake //services/api:de<TAB> # Autocompletes to mmake //services/api:deploy
 ```
 
 ## Usage
-Mono Make is a drop-in replacement for Make, so you can use it exactly the same way you would use Make and the files are just plain old Makefiles. The only difference is that you need to use `mmake` instead of `make` and you'll need to specify your targets using the root path syntax `//`.
+MMake functions as a replacement for Make, allowing you to use it in the same manner as Make. It recognizes regular Makefiles, but you should use mmake instead of make and specify your targets using the root path syntax //.
 
-To specify a target you can put an ordinary Makefile into any subdirectory of the root directory of your monorepo. This file will then be run from the context of the root directory of your monorepo. Environment variables will be injected into every file.
+To define a target, place a Makefile into any subdirectory of the monorepo root directory. This file will run in the context of the root directory. Environment variables will be injected into each file.
 
-To specify a target you use the path to the target relative to your root directory specified by //, e.g. `//services/api:deploy`. This will run the `deploy` target in the `services/api/Makefile` file.
+A target is specified using the path relative to the root directory marked by //, e.g., //services/api:deploy. This runs the deploy target in the services/api/Makefile file.
 
-This is probably too simplistic for extremely complicated Makefiles. However, if you are running many services that have fairly simple and common tasks like build/test/deploy, then this should be more than enough. Also, it's a great way to throw together random scripts and discover them easily through the command line. 
+While MMake might not be suitable for very complex Makefiles, it's efficient for managing services with simple and common tasks like build/test/deploy.Also, it's a great way to throw together scripts and discover them easily through the command line. 
 
 ### Clean
 ```bash
 mmake clean //services/api
 ```
-Will delete all the contents of the ./build-out/services/api directory.
-
-### Autocompletion
-Run the following command to enable autocompletion for Mono Make:
-```bash
-# This will be removed when your terminal resets. Add this command to your .bashrc or .zshrc to enable persistent autocompletion.
-source <(mmake completion)
-
-```
+Will delete all the contents of the `./build-out/services/api directory`.
 
 ## Features
 ### Automatic Makefile inclusion
-Mono Make will automatically include any Makefiles in the current directory and any child directories. This means you can split your Makefiles up across multiple files and directories.
+MMake automatically includes Makefiles from the current and child directories.
 
 ### Environment Variable Injection
 Mono Make will automatically inject environment variables into your Makefiles. It will inject the following variables:
@@ -69,48 +63,21 @@ Mono Make will automatically inject environment variables into your Makefiles. I
 current target
 
 ## Managed build outputs
-Mono Make will automatically manage build outputs for you. It will create a `build-out` directory in the root directory of your monorepo. This directory will contain a directory for each target. When you run a target, it will create a directory for that target if it doesn't already exist. It will then run the target in that directory. This means that you can run the same target multiple times without having to worry about cleaning up the build output.
+MMake automatically creates and manages a build-out directory in the monorepo root directory for each target. 
 
-You should add `build-out` to your `.gitignore` file.
+The build-out directory should be added to your `.gitignore` file.
 
 ### Run from anywhere
-You can run Mono Make from anywhere in your monorepo. It will automatically find the root directory of your monorepo and run the target from there.
+MMake can be run from any location within your monorepo.
 
 ### Target discovery & autocomplete
-Mono Make will automatically discover targets in your Makefiles. It also provides autocomplete for targets. This means you can run `mmake //services/api:de` and it will autocomplete to `mmake //services/api:deploy` when you hit tab.
-
-Target discovery also works through Makefile comments. If you have a kitchen-sink script that performs a few utilities you can use the command line autocomplete to find it easily. 
+MMake automatically discovers Makefile targets and provides autocomplete.
 
 ## Examples
-### Simple Makefile
-```makefile
-default:
-    @echo "Hello World"
-```
-```bash
-mmake //services/api:default
-# Output: Hello World
-```
-
-### Makefile with environment variables
-```makefile
-default:
-	@echo "Root directory: $(MM_ROOT)"
-	@echo "Current directory: $(MM_PATH)"
-	@echo "Build directory: $(MM_OUT_ROOT)"
-	@echo "Target directory: $(MM_OUT_PATH)"
-```
-```bash
-mmake //services/api:default
-# Output:
-# Root directory: /Users/aakarim/Projects/monorepo
-# Current directory: /Users/aakarim/Projects/monorepo/services/api
-# Build directory: /Users/aakarim/Projects/monorepo/build-out
-# Target directory: /Users/aakarim/Projects/monorepo/build-out/services/api
-```
+Check the provided Makefile examples for an idea of how MMake operates.
 
 ## Contributing
-Contributions are very welcome!
+Contributions are welcome!
 
 ## License
 Mono Make is licensed under the MIT License. See [LICENSE](LICENSE) for more information.

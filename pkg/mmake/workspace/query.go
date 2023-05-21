@@ -46,6 +46,43 @@ func (q *Query) QueryFilesByPrefix(ctx context.Context, prefix string) ([]*Build
 	return files, nil
 }
 
+// GenComp completes the given prefix to a list of files and targets that match the prefix
+// if there is a ':' in the input, it will complete to targets, otherwise it will complete to files.
+func (q *Query) GenComp(ctx context.Context, prefix string) ([]*BuildFile, error) {
+	if prefix == "" {
+		return nil, ErrInvalidQuery
+	}
+	if len(prefix) < 2 {
+		return nil, ErrInvalidQuery
+	}
+	// strip //
+	if prefix[:2] == "//" {
+		prefix = prefix[2:]
+	}
+	// get directory of the prefix and compare to the directory of the file
+	// if they match, then add the file to the list
+	prefixPath := path.Join(q.ws.rootPath, prefix)
+
+	// if the prefix is the root directory, then return the root Makefile
+	if prefixPath == q.ws.rootPath {
+		return []*BuildFile{q.files[0]}, nil
+	}
+
+	var files []*BuildFile
+	for _, f := range q.files {
+		if len(f.Path) < len(prefixPath) {
+			continue
+		}
+		if f.Path[:len(prefixPath)] != prefixPath {
+			continue
+		}
+
+		files = append(files, f)
+	}
+
+	return files, nil
+}
+
 func (q *Query) GetPackageFromFile(filePath string) (string, error) {
 	// get the directory of the file
 	dir := filepath.Dir(filePath)

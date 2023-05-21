@@ -49,8 +49,8 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		return nil
 	}
 
-	// if args[1] is "query" then we want to query the Workspace
-	if len(args) > 1 && args[1] == "query" {
+	// if args[1] is "compgen" then we want to complete the input
+	if len(args) > 1 && args[1] == "compgen" {
 		qu := workspace.NewQuery(ws)
 		if err := qu.Update(ctx); err != nil {
 			return err

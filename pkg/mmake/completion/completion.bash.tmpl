@@ -11,7 +11,7 @@ _mmake__complete() {
 
   # If the current word is a known command, then we can get a list of possible completions for it.
   if [[ "$prev" == "mmake" ]]; then
-    mmake query $cur -w {{.WorkspaceDir}}/WORKSPACE.mmake | awk '{print $1}'
+    mmake compgen $cur -w {{.WorkspaceDir}}/WORKSPACE.mmake | awk '{print $1}'
   fi
 }
 

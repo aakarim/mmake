@@ -34,22 +34,6 @@ source <(mmake completion)
 ```bash
 mmake //services/api:de<TAB> # Autocompletes to mmake //services/api:deploy
 ```
-
-## Usage
-MMake functions as a replacement for Make, allowing you to use it in the same manner as Make. It recognizes regular Makefiles, but you should use mmake instead of make and specify your targets using the root path syntax `//`.
-
-To define a target, place a Makefile into any subdirectory of the monorepo root directory. This file will run in the context of the root directory. Environment variables will be injected into each file.
-
-A target is specified using the path relative to the root directory marked by `//`, e.g. `//services/api:deploy`. This runs the deploy target in the `services/api/Makefile` file.
-
-While MMake might not be suitable for very complex Makefiles, it's efficient for managing services with simple and common tasks like build/test/deploy.Also, it's a great way to throw together scripts and discover them easily through the command line. 
-
-### Clean
-```bash
-mmake clean //services/api
-```
-Will delete all the contents of the `./build-out/services/api directory`.
-
 ## Features
 ### Automatic Makefile inclusion
 MMake automatically includes Makefiles from the current and child directories.
@@ -62,7 +46,7 @@ Mono Make will automatically inject environment variables into your Makefiles. I
 - `MM_OUT_PATH` - The path to the build output directory for the 
 current target
 
-## Managed build outputs
+### Managed build outputs
 MMake automatically creates and manages a build-out directory in the monorepo root directory for each target. 
 
 The build-out directory should be added to your `.gitignore` file.
@@ -72,6 +56,24 @@ MMake can be run from any location within your monorepo.
 
 ### Target discovery & autocomplete
 MMake automatically discovers Makefile targets and provides autocomplete.
+
+## Usage
+MMake functions as a replacement for Make, allowing you to use it in the same manner as Make. It recognizes regular Makefiles, but you should use mmake instead of make and specify your targets using the root path syntax `//`.
+
+To define a target, place a Makefile into any subdirectory of the monorepo root directory. This file will run in the context of the root directory. Environment variables will be injected into each file.
+
+A target is specified using the path relative to the root directory marked by `//`, e.g. `//services/api:deploy`. This runs the deploy target in the `services/api/Makefile` file.
+
+While MMake might not be suitable for very complex Makefiles, it's efficient for managing services with simple and common tasks like build/test/deploy. Also, it's a great way to throw together scripts and discover them easily through the command line. 
+
+### Clean
+```bash
+mmake clean //services/api
+```
+Will delete all the contents of the `./build-out/services/api directory`.
+
+### Query
+# Need to change the current query to complete and make a new one
 
 ## Examples
 Check the provided Makefile examples for an idea of how MMake operates.

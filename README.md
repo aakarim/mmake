@@ -10,7 +10,7 @@ The goals here are to:
 - Manage build outputs & code generation
 
 ## Motivation
-Despite the capabilities of Make, managing multiple Makefiles in monorepos can be complicated. MMake allows helps you distribute Makefiles across multiple files and directories. It automatically includes these files, inserts variables pointing to common directories for build outputs, and provides autocomplete for targets.
+Despite the capabilities of Make, managing multiple Makefiles in monorepos can be complicated. MMake helps you distribute Makefiles across multiple files and directories. It automatically includes these files, inserts variables pointing to common directories for build outputs, and provides autocomplete for targets.
 
 If you're setting up a monorepo and need a unified script handling tool, MMake could be useful. It's also beneficial if you're using Make and looking to distribute your Makefiles across various files.
 

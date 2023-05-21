@@ -59,19 +59,11 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 			return fmt.Errorf("query required")
 		}
 
-		files, err := qu.QueryFilesByPrefix(ctx, args[2])
+		outputStr, err := qu.GenComp(ctx, args[2])
 		if err != nil {
 			return err
 		}
-		// print the files as columns with file and description
-		for _, file := range files {
-			packageName, err := qu.GetPackageFromFile(file.Path)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("%s\t%s\n", packageName, file.Description)
-		}
-
+		fmt.Print(outputStr)
 		return nil
 	}
 

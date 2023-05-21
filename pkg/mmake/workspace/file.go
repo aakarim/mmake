@@ -12,6 +12,8 @@ import (
 type BuildFile struct {
 	// path to the build file
 	Path string
+	// label of the build file
+	Label string
 	// list of targets in the build file
 	Targets []string
 	// the description of the build file (if any)
@@ -26,7 +28,7 @@ func FileIsBuildFile(path string) bool {
 	return false
 }
 
-func ParseBuildFile(path string) (*BuildFile, error) {
+func ParseBuildFile(path string, rootDir string) (*BuildFile, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -54,10 +56,15 @@ func ParseBuildFile(path string) (*BuildFile, error) {
 	if err != nil {
 		return nil, err
 	}
+	label, err := GetPackageFromFile(path, rootDir)
+	if err != nil {
+		return nil, err
+	}
 
 	// parse as makefile
 	return &BuildFile{
-		Path: path,
+		Path:  path,
+		Label: label,
 		Targets: func() []string {
 			var targets []string
 			targets = append(targets, mf.Targets...)

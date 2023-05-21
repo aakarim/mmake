@@ -92,7 +92,7 @@ func ParseMakefile(file io.Reader) (*Makefile, error) {
 
 		// if the line contains a string up until ': ' or ':\n' then it is a target
 		if strings.Contains(scanned, ": ") || strings.Contains(scanned, ":") {
-			target := strings.Split(scanned, ": ")[0]
+			target := strings.Split(scanned, ":")[0]
 			mf.Targets = append(mf.Targets, target)
 		}
 	}

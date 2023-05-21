@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestQuery_QueryFilesByPrefix(t *testing.T) {
+func TestQuery_genCompFilesByPrefix(t *testing.T) {
 	type fields struct {
 		ws    *Workspace
 		files []*BuildFile
@@ -75,6 +75,25 @@ func TestQuery_QueryFilesByPrefix(t *testing.T) {
 				{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile"},
 			},
 		},
+		{
+			name: "match targets",
+			fields: fields{
+				ws: New("/test/workspace"),
+				files: []*BuildFile{
+					{Path: "/test/workspace/Makefile", Description: "test workspace"},
+					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile"},
+					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile"},
+				},
+			},
+			args: args{
+				ctx:    context.Background(),
+				prefix: "//pkg/mmake:",
+			},
+			want: []*BuildFile{
+				{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile"},
+				{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -82,7 +101,7 @@ func TestQuery_QueryFilesByPrefix(t *testing.T) {
 				ws:    tt.fields.ws,
 				files: tt.fields.files,
 			}
-			got, err := w.QueryFilesByPrefix(tt.args.ctx, tt.args.prefix)
+			got, err := w.genCompFiles(tt.args.ctx, tt.args.prefix)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Query.QueryFilesByPrefix() error = %v, wantErr %v", err, tt.wantErr)
 				return

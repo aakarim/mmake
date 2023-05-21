@@ -6,17 +6,25 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
-var ErrInvalidQuery = fmt.Errorf("invalid query")
+type ErrInvalidQuery struct {
+	query   string
+	message string
+}
+
+func (e *ErrInvalidQuery) Error() string {
+	return fmt.Sprintf("invalid query: %s", e.message)
+}
 
 // QueryByPrefix returns a list of workspace-aware files that match the given prefix
 func (q *Query) QueryFilesByPrefix(ctx context.Context, prefix string) ([]*BuildFile, error) {
 	if prefix == "" {
-		return nil, ErrInvalidQuery
+		return nil, &ErrInvalidQuery{query: prefix, message: "prefix required"}
 	}
 	if len(prefix) < 2 {
-		return nil, ErrInvalidQuery
+		return nil, &ErrInvalidQuery{query: prefix, message: "prefix must be at least 2 characters"}
 	}
 	// strip //
 	if prefix[:2] == "//" {
@@ -44,16 +52,119 @@ func (q *Query) QueryFilesByPrefix(ctx context.Context, prefix string) ([]*Build
 	}
 
 	return files, nil
+}
+
+func (q *Query) printFiles(files []*BuildFile) error {
+	// print the files as columns with file and description
+	for _, file := range files {
+		packageName, err := GetPackageFromFile(file.Path, q.ws.rootPath)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s\t%s\n", packageName, file.Description)
+	}
+	return nil
 }
 
 // GenComp completes the given prefix to a list of files and targets that match the prefix
 // if there is a ':' in the input, it will complete to targets, otherwise it will complete to files.
-func (q *Query) GenComp(ctx context.Context, prefix string) ([]*BuildFile, error) {
+// TODO: move this to the 'completion' package.
+func (q *Query) GenComp(ctx context.Context, prefix string) (string, error) {
 	if prefix == "" {
-		return nil, ErrInvalidQuery
+		return "", &ErrInvalidQuery{query: prefix, message: "prefix required"}
+	}
+	// if does not start with // then it's not valid
+	if len(prefix) < 2 && prefix[:2] != "//" {
+		return "", &ErrInvalidQuery{query: prefix, message: "prefix must be at least 2 characters and start with //"}
+	}
+
+	// if there is a ':' in the prefix, then complete to targets
+	if strings.Contains(prefix, ":") {
+		label, targets, err := q.genCompTargets(ctx, prefix)
+		if err != nil {
+			return "", err
+		}
+		var outputStr string
+		for _, target := range targets {
+			outputStr += fmt.Sprintf("%s:%s\n", label, target)
+		}
+		return outputStr, nil
+	}
+
+	// otherwise complete to files
+	files, err := q.genCompFiles(ctx, prefix)
+	if err != nil {
+		return "", err
+	}
+	var outputStr string
+	for _, file := range files {
+		p, err := GetPackageFromFile(file.Path, q.ws.rootPath)
+		if err != nil {
+			return "", err
+		}
+		outputStr += p + "\n"
+	}
+	return outputStr, nil
+}
+
+func (q *Query) genCompTargets(ctx context.Context, prefix string) (string, []string, error) {
+	if prefix == "" {
+		return "", nil, &ErrInvalidQuery{query: prefix, message: "prefix required"}
+	}
+	if len(prefix) < 3 {
+		return "", nil, &ErrInvalidQuery{query: prefix, message: "prefix must be at least 3 characters"}
+	}
+
+	// ensure there is a ':' in the prefix
+	if !strings.Contains(prefix, ":") {
+		return "", nil, &ErrInvalidQuery{query: prefix, message: "prefix must contain a ':'"}
+	}
+
+	// get directory of the prefix and compare to the directory of the file
+	// if they match, then add the file to the list
+	prefixPath := path.Join(q.ws.rootPath, prefix)
+
+	// if the prefix is the root directory, then return the targets in the root Makefile
+	if prefixPath == q.ws.rootPath {
+		return "//", q.files[0].Targets, nil
+	}
+
+	spl := strings.Split(prefix, ":")
+	if len(spl) != 2 {
+		return "", nil, &ErrInvalidQuery{query: prefix, message: "prefix must contain a ':'"}
+	}
+
+	// get the file that matches the prefix
+	var file *BuildFile
+	for _, f := range q.files {
+		if f.Label == spl[0] {
+			file = f
+			break
+		}
+	}
+
+	if file == nil {
+		return "", nil, &ErrInvalidQuery{query: prefix, message: "no file found for prefix"}
+	}
+	label := file.Label
+
+	// get the targets that match the prefix
+	var targets []string
+	for _, t := range file.Targets {
+		if strings.HasPrefix(t, spl[1]) {
+			targets = append(targets, t)
+		}
+	}
+
+	return label, targets, nil
+}
+
+func (q *Query) genCompFiles(ctx context.Context, prefix string) ([]*BuildFile, error) {
+	if prefix == "" {
+		return nil, &ErrInvalidQuery{query: prefix, message: "prefix required"}
 	}
 	if len(prefix) < 2 {
-		return nil, ErrInvalidQuery
+		return nil, &ErrInvalidQuery{query: prefix, message: "prefix must be at least 2 characters"}
 	}
 	// strip //
 	if prefix[:2] == "//" {
@@ -83,13 +194,13 @@ func (q *Query) GenComp(ctx context.Context, prefix string) ([]*BuildFile, error
 	return files, nil
 }
 
-func (q *Query) GetPackageFromFile(filePath string) (string, error) {
+func GetPackageFromFile(filePath string, rootPath string) (string, error) {
 	// get the directory of the file
 	dir := filepath.Dir(filePath)
-	if dir == q.ws.rootPath {
+	if dir == rootPath {
 		return "//", nil
 	}
-	dir = dir[len(q.ws.rootPath):]
+	dir = dir[len(rootPath):]
 
 	// strip the leading '/'
 	dir = dir[1:]
@@ -125,7 +236,7 @@ func (q *Query) Update(ctx context.Context) error {
 
 		if !d.IsDir() && FileIsBuildFile(d.Name()) {
 			// parse
-			f, err := ParseBuildFile(path)
+			f, err := ParseBuildFile(path, q.ws.rootPath)
 			if err != nil {
 				return fmt.Errorf("failed to parse build file %s: %w", path, err)
 			}

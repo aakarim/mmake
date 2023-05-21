@@ -1,0 +1,21 @@
+#! /bin/zsh
+
+_mmake__complete() {
+  local cur="${COMP_WORDS[$COMP_CWORD]}"
+  local prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+  # If the current word is empty, or if it is the first word, then we don't need to do anything.
+  if [[ -z "$cur" || "$cur" == "" ]]; then
+    return
+  fi
+
+  # If the current word is a known command, then we can get a list of possible completions for it.
+  if [[ "$prev" == "mmake" ]]; then
+    mmake query $cur -w {{.WorkspaceDir}}/WORKSPACE.mmake | awk '{print $1}'
+  fi
+}
+
+echo "Loading mmake completion..."
+complete -F _mmake__complete -o nospace "mmake"
+echo "Done."
+

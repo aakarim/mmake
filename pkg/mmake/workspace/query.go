@@ -76,7 +76,7 @@ func (q *Query) GenComp(ctx context.Context, prefix string) (string, error) {
 		return "", &ErrInvalidQuery{query: prefix, message: "prefix must start with //"}
 	}
 
-	// if there is a ':' in the prefix, then complete to targets
+	// if there is a ':' in the prefix, then complete to targets only
 	if strings.Contains(prefix, ":") {
 		label, targets, err := q.genCompTargets(ctx, prefix)
 		if err != nil {
@@ -89,16 +89,38 @@ func (q *Query) GenComp(ctx context.Context, prefix string) (string, error) {
 		return outputStr, nil
 	}
 
-	// otherwise complete to files
-	files, err := q.genCompFiles(ctx, prefix)
+	// otherwise complete to files and append the targets of the current label
+	completions, err := q.genCompFiles(ctx, prefix)
 	if err != nil {
 		return "", err
 	}
+
+	bf := q.GetFileByLabel(Label(prefix))
+	if bf != nil {
+		label, targets, err := q.genCompTargets(ctx, prefix+":")
+		if err != nil {
+			return "", err
+		}
+		for _, v := range targets {
+			completions = append(completions, fmt.Sprintf("%s:%s", string(label), v))
+		}
+	}
+
 	var outputStr string
-	for _, file := range files {
-		outputStr += string(file) + "\n"
+	for _, completion := range completions {
+		outputStr += string(completion) + "\n"
 	}
 	return outputStr, nil
+}
+
+func (q *Query) GetFileByLabel(label Label) *BuildFile {
+	for _, v := range q.files {
+		if v.Label == label {
+			return v
+		}
+	}
+
+	return nil
 }
 
 func (q *Query) genCompTargets(ctx context.Context, prefix string) (Label, []string, error) {
@@ -162,11 +184,9 @@ func (q *Query) genCompFiles(ctx context.Context, prefix string) ([]string, erro
 	}
 	// if the prefix is already a label that is useful information
 	var isLabel bool
-	for _, v := range q.files {
-		if string(v.Label) == prefix {
-			isLabel = true
-			break
-		}
+	bf := q.GetFileByLabel(Label(prefix))
+	if bf != nil {
+		isLabel = true
 	}
 
 	// strip //

@@ -1,3 +1,6 @@
 test:
 	go build ./...
 	go test ./...
+dev_install:
+	go install .
+	source <(mmake completion)

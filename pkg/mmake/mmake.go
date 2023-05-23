@@ -51,15 +51,17 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 
 	// if args[1] is "compgen" then we want to complete the input
 	if len(args) > 1 && args[1] == "compgen" {
-		qu := workspace.NewQuery(ws)
+		prefix := args[2]
+		qu := workspace.NewQuery(ws, prefix)
 		if err := qu.Update(ctx, 2); err != nil {
 			return err
 		}
+
 		if len(args) < 3 {
 			return fmt.Errorf("query required")
 		}
 
-		outputStr, err := qu.GenComp(ctx, args[2])
+		outputStr, err := qu.GenComp(ctx, prefix)
 		if err != nil {
 			return err
 		}

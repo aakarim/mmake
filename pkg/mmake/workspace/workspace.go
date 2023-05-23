@@ -7,11 +7,22 @@ import (
 )
 
 type Workspace struct {
-	rootPath string
+	rootPath   string
+	ignoreDirs []string
 }
 
 func New(rootPath string) *Workspace {
-	return &Workspace{rootPath: rootPath}
+	return &Workspace{rootPath: rootPath, ignoreDirs: []string{
+		".git",
+		"build-out",
+		"vendor",
+		"node_modules",
+		"__pycache__",
+		"__snapshots__",
+		"__tests__",
+		"__mocks__",
+		"__fixtures__",
+	}}
 }
 
 func (w *Workspace) Init(ctx context.Context) error {

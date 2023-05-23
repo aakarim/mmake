@@ -211,3 +211,129 @@ func TestQuery_GetPackageFromFile(t *testing.T) {
 		})
 	}
 }
+
+func TestQuery_shouldSkipDir(t *testing.T) {
+	type fields struct {
+		ws           *Workspace
+		updatePrefix string
+		tree         *Node
+	}
+	type args struct {
+		dirPath    string
+		relativeTo string
+		depth      int
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "sibling dirs",
+			fields: fields{
+				ws: New("/test/workspace"),
+				tree: &Node{
+					dirPath: "/test/workspace",
+					Children: []*Node{
+						{
+							dirPath: "/test/workspace/pkg/ffake",
+						},
+						{
+							dirPath: "/test/workspace/pkg/mmake",
+						},
+					},
+				},
+			},
+			args: args{
+				dirPath:    "/test/workspace/pkg/mmake",
+				relativeTo: "/test/workspace",
+				depth:      1,
+			},
+			want: false,
+		},
+		{
+			name: "untouched dirs",
+			fields: fields{
+				ws: New("/test/workspace"),
+				tree: &Node{
+					dirPath: "/test/workspace",
+					Children: []*Node{
+						{
+							dirPath: "/test/workspace/pkg/ffake",
+						},
+					},
+				},
+			},
+			args: args{
+				dirPath:    "/test/workspace/pkg/mmake/mmake2",
+				relativeTo: "/test/workspace",
+				depth:      1,
+			},
+			want: false,
+		},
+		{
+			name: "skip child directories",
+			fields: fields{
+				ws: New("/test/workspace"),
+				tree: &Node{
+					dirPath: "/test/workspace",
+					Children: []*Node{
+						{
+							dirPath: "/test/workspace/pkg/ffake",
+						},
+						{
+							dirPath: "/test/workspace/pkg/mmake",
+						},
+					},
+				},
+			},
+			args: args{
+				dirPath:    "/test/workspace/pkg/mmake/mmake2",
+				relativeTo: "/test/workspace/pkg",
+				depth:      1,
+			},
+			want: true,
+		},
+		{
+			name: "don't skip very nested directories",
+			fields: fields{
+				ws: New("/test/workspace"),
+				tree: &Node{
+					dirPath: "/test/workspace",
+					Children: []*Node{
+						{
+							dirPath: "/test/workspace/pkg/ffake",
+						},
+						{
+							dirPath: "/test/workspace/pkg/mmake",
+							Children: []*Node{
+								{
+									dirPath: "/test/workspace/pkg/mmake/mmake2",
+								},
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				dirPath:    "/test/workspace/pkg/mmake/mmake2/mmake3",
+				relativeTo: "/test/workspace/pkg",
+				depth:      3,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q := &Query{
+				ws:           tt.fields.ws,
+				updatePrefix: tt.fields.updatePrefix,
+				tree:         tt.fields.tree,
+			}
+			if got := q.shouldSkipDir(tt.args.dirPath, tt.args.depth); got != tt.want {
+				t.Errorf("Query.shouldSkipDir() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

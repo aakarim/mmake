@@ -70,6 +70,7 @@ func (q *Query) printFiles(files []*BuildFile) error {
 // GenComp completes the given prefix to a list of files and targets that match the prefix
 // if there is a ':' in the input, it will complete to targets, otherwise it will complete to files.
 // TODO: move this to the 'completion' package.
+// TODO: use the tree structure to pick a subtree. Should be faster.
 func (q *Query) GenComp(ctx context.Context, prefix string) (string, error) {
 	// if does not start with // then it's not valid
 	if len(prefix) < 2 || prefix[:2] != RootLabel {
@@ -327,44 +328,153 @@ func (w *Query) QueryTargetsByFile(ctx context.Context, filePath string) ([]stri
 
 type Query struct {
 	ws *Workspace
+	// updatePrefix is where all queries are started from
+	// this is to improve performance on completions over large sets of files
+	updatePrefix string
 	// the list of workspace-aware files in the workspace
 	files []*BuildFile
+	tree  *Node
 }
 
-func NewQuery(ws *Workspace) *Query {
-	return &Query{ws: ws}
+func NewQuery(ws *Workspace, updatePrefix string) *Query {
+	return &Query{ws: ws, updatePrefix: updatePrefix}
 }
 
 // Update updates the workspace by re-scanning the workspace directory
 // and re-parsing all of the Makefiles.
-// Depth is the depth of the directory tree to scan. If depth is 0, then
+// Depth is the depth of the directory tree to scan relative to the first BuildFile found in a subtree. If depth is 0, then
 // the entire tree is scanned.
 func (q *Query) Update(ctx context.Context, depth int) error {
 	// clear the list of files
 	q.files = nil
+	relativeTo := path.Join(q.ws.rootPath, path.Dir(q.updatePrefix))
+	q.tree = &Node{dirPath: relativeTo}
+	// TODO: search for the nearest package above (maybe below?) and start from there
 	// walk the workspace directory and find all the Makefiles
-	return filepath.WalkDir(q.ws.rootPath, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !d.IsDir() && FileIsBuildFile(d.Name()) {
-			// parse
-			f, err := ParseBuildFile(path, q.ws.rootPath)
+	return filepath.WalkDir(relativeTo, func(pp string, d os.DirEntry, err error) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 			if err != nil {
-				return fmt.Errorf("failed to parse build file %s: %w", path, err)
+				return err
 			}
-			q.files = append(q.files, f)
-		}
 
-		if d.IsDir() && d.Name() == BuildDir {
-			return filepath.SkipDir
-		}
+			if d.IsDir() {
+				for _, v := range q.ws.ignoreDirs {
+					if d.Name() == v {
+						return filepath.SkipDir
+					}
+				}
+				// if we have a directory then check if we already have
+				// a BuildFile underneath it or as a sibling, if so then skip
+				if depth > 0 {
+					if q.shouldSkipDir(pp, depth) {
+						return filepath.SkipDir
+					}
+				}
+				return nil
+			}
 
-		if d.IsDir() {
+			if !d.IsDir() && FileIsBuildFile(d.Name()) {
+				// parse
+				f, err := ParseBuildFile(pp, q.ws.rootPath)
+				if err != nil {
+					return fmt.Errorf("failed to parse build file %s: %w", pp, err)
+				}
+				// add the file to the tree
+				newNode := &Node{dirPath: path.Dir(pp)}
+
+				parent := q.tree.GetDeepestParent(newNode)
+				parent.Children = append(parent.Children, &Node{dirPath: path.Dir(pp)})
+				q.files = append(q.files, f)
+			}
+
 			return nil
 		}
-
-		return nil
 	})
+}
+
+type Node struct {
+	dirPath  string
+	Children []*Node
+}
+
+func (n *Node) GetTreeAsList() []*Node {
+	var list []*Node
+	n.getTreeAsList(&list)
+	return list
+}
+
+func (n *Node) getTreeAsList(list *[]*Node) {
+	*list = append(*list, n)
+	for _, v := range n.Children {
+		v.getTreeAsList(list)
+	}
+}
+
+func (n *Node) GetDeepestParent(child *Node) *Node {
+	// loop recursively until we find the right place to add the child
+	correctNode := n
+	for _, v := range n.Children {
+		if v.pathAscendantOf(child.dirPath) {
+			return v.GetDeepestParent(child)
+		}
+	}
+	return correctNode
+}
+
+func (n *Node) pathAscendantOf(dirPath string) bool {
+	if n.dirPath == dirPath {
+		return false
+	}
+
+	if strings.HasPrefix(dirPath, n.dirPath) &&
+		strings.Count(dirPath, "/") > strings.Count(n.dirPath, "/") {
+		return true
+	}
+	return false
+}
+
+func (n *Node) String() string {
+	// recursively print the node in a tree structure
+	var b strings.Builder
+	n.print(&b, 1)
+	return b.String()
+}
+
+func (n *Node) print(b *strings.Builder, depth int) {
+	b.WriteString(strings.Repeat("-", depth*2))
+	b.WriteString(n.dirPath)
+	b.WriteString("\n")
+	for _, v := range n.Children {
+		v.print(b, depth+1)
+	}
+}
+
+func (n *Node) Depth(targetNode *Node) int {
+	return n.depth(targetNode, 0)
+}
+
+func (n *Node) depth(targetNode *Node, depth int) int {
+	// recursively find the depth of the node
+	if n == targetNode {
+		return depth
+	}
+	depth += 1
+	var highestDepth int
+	for _, v := range n.Children {
+		highestDepth = v.depth(targetNode, depth)
+	}
+
+	return highestDepth
+}
+
+func (q *Query) shouldSkipDir(dirPath string, depth int) bool {
+	tmpNode := &Node{dirPath: dirPath}
+	existingNode := q.tree.GetDeepestParent(tmpNode)
+	// compare the existing node to the root node and see if it is more than depth distance
+	// if it is then return true
+	nodeDepth := q.tree.Depth(existingNode)
+	return nodeDepth+1 > depth
 }

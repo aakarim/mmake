@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -27,7 +28,7 @@ func (q *Query) QueryFilesByPrefix(ctx context.Context, prefix string) ([]*Build
 		return nil, &ErrInvalidQuery{query: prefix, message: "prefix must be at least 2 characters"}
 	}
 	// strip //
-	if prefix[:2] == "//" {
+	if prefix[:2] == RootLabel {
 		prefix = prefix[2:]
 	}
 	// get directory of the prefix and compare to the directory of the file
@@ -70,12 +71,9 @@ func (q *Query) printFiles(files []*BuildFile) error {
 // if there is a ':' in the input, it will complete to targets, otherwise it will complete to files.
 // TODO: move this to the 'completion' package.
 func (q *Query) GenComp(ctx context.Context, prefix string) (string, error) {
-	if prefix == "" {
-		return "", &ErrInvalidQuery{query: prefix, message: "prefix required"}
-	}
 	// if does not start with // then it's not valid
-	if len(prefix) < 2 && prefix[:2] != "//" {
-		return "", &ErrInvalidQuery{query: prefix, message: "prefix must be at least 2 characters and start with //"}
+	if len(prefix) < 2 || prefix[:2] != RootLabel {
+		return "", &ErrInvalidQuery{query: prefix, message: "prefix must start with //"}
 	}
 
 	// if there is a ':' in the prefix, then complete to targets
@@ -98,16 +96,12 @@ func (q *Query) GenComp(ctx context.Context, prefix string) (string, error) {
 	}
 	var outputStr string
 	for _, file := range files {
-		p, err := GetPackageFromFile(file.Path, q.ws.rootPath)
-		if err != nil {
-			return "", err
-		}
-		outputStr += p + "\n"
+		outputStr += string(file) + "\n"
 	}
 	return outputStr, nil
 }
 
-func (q *Query) genCompTargets(ctx context.Context, prefix string) (string, []string, error) {
+func (q *Query) genCompTargets(ctx context.Context, prefix string) (Label, []string, error) {
 	if prefix == "" {
 		return "", nil, &ErrInvalidQuery{query: prefix, message: "prefix required"}
 	}
@@ -126,7 +120,7 @@ func (q *Query) genCompTargets(ctx context.Context, prefix string) (string, []st
 
 	// if the prefix is the root directory, then return the targets in the root Makefile
 	if prefixPath == q.ws.rootPath {
-		return "//", q.files[0].Targets, nil
+		return RootLabel, q.files[0].Targets, nil
 	}
 
 	spl := strings.Split(prefix, ":")
@@ -137,7 +131,7 @@ func (q *Query) genCompTargets(ctx context.Context, prefix string) (string, []st
 	// get the file that matches the prefix
 	var file *BuildFile
 	for _, f := range q.files {
-		if f.Label == spl[0] {
+		if string(f.Label) == spl[0] {
 			file = f
 			break
 		}
@@ -159,46 +153,143 @@ func (q *Query) genCompTargets(ctx context.Context, prefix string) (string, []st
 	return label, targets, nil
 }
 
-func (q *Query) genCompFiles(ctx context.Context, prefix string) ([]*BuildFile, error) {
+func (q *Query) genCompFiles(ctx context.Context, prefix string) ([]string, error) {
 	if prefix == "" {
 		return nil, &ErrInvalidQuery{query: prefix, message: "prefix required"}
 	}
 	if len(prefix) < 2 {
 		return nil, &ErrInvalidQuery{query: prefix, message: "prefix must be at least 2 characters"}
 	}
+	// if the prefix is already a label that is useful information
+	var isLabel bool
+	for _, v := range q.files {
+		if string(v.Label) == prefix {
+			isLabel = true
+			break
+		}
+	}
+
 	// strip //
-	if prefix[:2] == "//" {
+	if prefix[:2] == RootLabel {
 		prefix = prefix[2:]
 	}
 	// get directory of the prefix and compare to the directory of the file
 	// if they match, then add the file to the list
 	prefixPath := path.Join(q.ws.rootPath, prefix)
 
-	// if the prefix is the root directory, then return the root Makefile
-	if prefixPath == q.ws.rootPath {
-		return []*BuildFile{q.files[0]}, nil
-	}
+	// get the labels and directories that are potential completions for the prefix
+	// This could be:
+	// 1. The prefix itself as a Label
+	// 2. The prefix as a directory (with a trailing '/')
+	// 3. The prefix + the intervening directories until the next label e.g. prefix: "//" - ["//", "//pkg/foo", "//pkg/bar"] -> ["//", "//pkg/"]
 
-	var files []*BuildFile
-	for _, f := range q.files {
-		if len(f.Path) < len(prefixPath) {
+	// copy & sort the files by descending path length
+	files := make([]*BuildFile, len(q.files))
+	copy(files, q.files)
+
+	sort.Slice(files, func(i, j int) bool {
+		return len(files[i].Path) > len(files[j].Path)
+	})
+
+	interveningDirs := map[string]bool{}
+	var thisLevelCompletions []string
+	for _, f := range files {
+		currentDir := path.Dir(f.Path)
+		relDirPath := strings.TrimPrefix(currentDir, q.ws.rootPath)
+
+		// invariant: prefixPath is a prefix of currentDir
+		if !strings.HasPrefix(currentDir, prefixPath) {
 			continue
 		}
-		if f.Path[:len(prefixPath)] != prefixPath {
+
+		// if the file will match up the prefix path, then add it to the list
+		var hasThisLevelCompletions bool
+		for _, v := range thisLevelCompletions {
+			enclosingDir := path.Dir(v)
+			if path.Dir(relDirPath) == enclosingDir {
+				hasThisLevelCompletions = true
+				break
+			}
+		}
+		if !hasThisLevelCompletions {
+			// if the same level then add
+			if path.Dir(currentDir) == path.Dir(prefixPath) {
+				thisLevelCompletions = []string{}
+				thisLevelCompletions = append(thisLevelCompletions, string(f.Label))
+			}
+			if !isLabel {
+				// if the labels are not in the same directory then assume
+				// that this is lower level and reset the list
+				if len(thisLevelCompletions) > 0 {
+					if path.Dir(currentDir) != path.Dir(thisLevelCompletions[0]) {
+						thisLevelCompletions = []string{}
+					}
+				}
+				thisLevelCompletions = append(thisLevelCompletions, string(f.Label))
+			}
+		} else {
+			thisLevelCompletions = append(thisLevelCompletions, string(f.Label))
+		}
+
+		if !isLabel || path.Dir(f.Path) == prefixPath {
 			continue
 		}
 
-		files = append(files, f)
+		if interveningDirs[relDirPath] {
+			delete(interveningDirs, relDirPath)
+		}
+
+		// remove the last directory from the path
+		// e.g. /pkg/foo/bar -> /pkg/foo
+		relDirPath = path.Dir(relDirPath)
+
+		// if the path is shorter than the prefix, then skip it
+		if len(relDirPath) < len(prefix) {
+			continue
+		}
+		// if the prefix is a directory, then add it to the list
+		if relDirPath != "/" {
+			interveningDirs[relDirPath] = true
+		}
 	}
 
-	return files, nil
+	completions := make([]string, 0, len(thisLevelCompletions)+len(interveningDirs))
+	// add the primary completion to the list of completions
+	if len(thisLevelCompletions) != 0 {
+		completions = append(completions, thisLevelCompletions...)
+	}
+
+	// add the label directories to the list of completions
+	for labelDir := range interveningDirs {
+		completions = append(completions, "/"+labelDir+"/")
+	}
+
+	// sort by length and then lexically
+	sort.Slice(completions, func(i, j int) bool {
+		if len(completions[i]) == len(completions[j]) {
+			return completions[i] < completions[j]
+		}
+		return len(completions[i]) < len(completions[j])
+	})
+
+	// remove duplicates
+	seen := map[string]bool{}
+	for i := 0; i < len(completions); i++ {
+		if seen[completions[i]] {
+			completions = append(completions[:i], completions[i+1:]...)
+			i--
+		}
+		seen[completions[i]] = true
+	}
+
+	return completions, nil
 }
 
 func GetPackageFromFile(filePath string, rootPath string) (string, error) {
 	// get the directory of the file
 	dir := filepath.Dir(filePath)
 	if dir == rootPath {
-		return "//", nil
+		return RootLabel, nil
 	}
 	dir = dir[len(rootPath):]
 
@@ -206,7 +297,7 @@ func GetPackageFromFile(filePath string, rootPath string) (string, error) {
 	dir = dir[1:]
 
 	// prepend '//'
-	return "//" + dir, nil
+	return RootLabel + dir, nil
 }
 
 // QueryTargetsByFile returns a list of targets that are contained within the given file
@@ -225,11 +316,14 @@ func NewQuery(ws *Workspace) *Query {
 }
 
 // Update updates the workspace by re-scanning the workspace directory
-func (q *Query) Update(ctx context.Context) error {
+// and re-parsing all of the Makefiles.
+// Depth is the depth of the directory tree to scan. If depth is 0, then
+// the entire tree is scanned.
+func (q *Query) Update(ctx context.Context, depth int) error {
 	// clear the list of files
 	q.files = nil
 	// walk the workspace directory and find all the Makefiles
-	filepath.WalkDir(q.ws.rootPath, func(path string, d os.DirEntry, err error) error {
+	return filepath.WalkDir(q.ws.rootPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -253,6 +347,4 @@ func (q *Query) Update(ctx context.Context) error {
 
 		return nil
 	})
-
-	return nil
 }

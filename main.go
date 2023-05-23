@@ -55,9 +55,6 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "\nCommands:\n")
 	fmt.Fprintf(os.Stderr, "  init\t\tInitialize a new workspace\n")
 	fmt.Fprintf(os.Stderr, "  completion\tPrint the completion script\n")
-	fmt.Fprintf(os.Stderr, "  query\t\tQuery the workspace\n")
-	fmt.Fprintf(os.Stderr, "\nTargets:\n")
-	// fmt.Fprintf(os.Stderr, "  //...\t\tRun all targets\n")
 	fmt.Fprintf(os.Stderr, "  //[path]:target\tRun a specific target\n")
 	fmt.Fprintf(os.Stderr, "\n")
 }

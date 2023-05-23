@@ -9,11 +9,15 @@ import (
 	"github.com/aakarim/mmake/pkg/mmake/makefile"
 )
 
+type Label string
+
+const RootLabel = "//"
+
 type BuildFile struct {
 	// path to the build file
 	Path string
 	// label of the build file
-	Label string
+	Label Label
 	// list of targets in the build file
 	Targets []string
 	// the description of the build file (if any)
@@ -64,7 +68,7 @@ func ParseBuildFile(path string, rootDir string) (*BuildFile, error) {
 	// parse as makefile
 	return &BuildFile{
 		Path:  path,
-		Label: label,
+		Label: Label(label),
 		Targets: func() []string {
 			var targets []string
 			targets = append(targets, mf.Targets...)

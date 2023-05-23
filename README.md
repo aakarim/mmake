@@ -1,11 +1,13 @@
 # MMake (Mono Make): Monorepo Task Runner
     
 ## About
-Mono Make is a simple monorepo task runner based on top of Make. It allows you to split your Makefiles up across multiple files, and provides a few extra features to make your life easier when working with scripts in monorepos.
+Mono Make is a simple monorepo task runner based on top of Make. It allows you to split your Makefiles up across multiple files and directories, and provides a few extra features to make your life easier when working with scripts in monorepos.
+
+Think of it as all the discoverability and tooling of a build system like Bazel, but without the headaches of having to learn a new build system. 
 
 The goals here are to:
-- Simplify the distribution of Makefiles across various files and directories.
 - Make it easy to discover and run targets.
+- Simplify the distribution of Makefiles across various files and directories.
 - Enable scripts to run anywhere within your monorepo.
 - Manage build outputs & code generation
 

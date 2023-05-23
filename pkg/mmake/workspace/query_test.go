@@ -19,41 +19,65 @@ func TestQuery_genCompFilesByPrefix(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    []*BuildFile
+		want    []string
 		wantErr bool
 	}{
+		{
+			name: "incomplete prefixes complete to nearest path",
+			fields: fields{
+				ws: New("/test/workspace"),
+				files: []*BuildFile{
+					{Path: "/test/workspace/Makefile", Description: "test workspace", Label: "//"},
+					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile", Label: "//pkg/mmake"},
+					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile", Label: "//pkg/ffake"},
+					{Path: "/test/workspace/pkg/mmake/mmake2/Makefile", Description: "test makefile", Label: "//pkg/mmake/mmake2"},
+					{Path: "/test/workspace/pkg/mmake/mmake3/Makefile", Description: "test makefile", Label: "//pkg/mmake/mmake3"},
+				},
+			},
+			args: args{
+				ctx:    context.Background(),
+				prefix: "//pk",
+			},
+			want: []string{
+				"//pkg/ffake",
+				"//pkg/mmake",
+			},
+		},
 		{
 			name: "root directory",
 			fields: fields{
 				ws: New("/test/workspace"),
 				files: []*BuildFile{
-					{Path: "/test/workspace/Makefile", Description: "test workspace"},
-					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile"},
-					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile"},
+					{Path: "/test/workspace/Makefile", Description: "test workspace", Label: "//"},
+					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile", Label: "//pkg/mmake"},
+					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile", Label: "//pkg/ffake"},
 				},
 			},
 			args: args{
 				ctx:    context.Background(),
 				prefix: "//",
 			},
-			want: []*BuildFile{{Path: "/test/workspace/Makefile", Description: "test workspace"}},
+			want: []string{
+				"//",
+				"//pkg/",
+			},
 		},
 		{
 			name: "half completed path",
 			fields: fields{
 				ws: New("/test/workspace"),
 				files: []*BuildFile{
-					{Path: "/test/workspace/Makefile", Description: "test workspace"},
-					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile"},
-					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile"},
+					{Path: "/test/workspace/Makefile", Description: "test workspace", Label: "//"},
+					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile", Label: "//pkg/mmake"},
+					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile", Label: "//pkg/ffake"},
 				},
 			},
 			args: args{
 				ctx:    context.Background(),
 				prefix: "//pkg/mmak",
 			},
-			want: []*BuildFile{
-				{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile"},
+			want: []string{
+				"//pkg/mmake",
 			},
 		},
 		{
@@ -61,38 +85,57 @@ func TestQuery_genCompFilesByPrefix(t *testing.T) {
 			fields: fields{
 				ws: New("/test/workspace"),
 				files: []*BuildFile{
-					{Path: "/test/workspace/Makefile", Description: "test workspace"},
-					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile"},
-					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile"},
+					{Path: "/test/workspace/Makefile", Description: "test workspace", Label: "//"},
+					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile", Label: "//pkg/mmake"},
+					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile", Label: "//pkg/ffake"},
 				},
 			},
 			args: args{
 				ctx:    context.Background(),
 				prefix: "//pkg/",
 			},
-			want: []*BuildFile{
-				{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile"},
-				{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile"},
+			want: []string{
+				"//pkg/ffake",
+				"//pkg/mmake",
 			},
 		},
 		{
-			name: "match targets",
+			name: "if a full label, return the subsequent slash",
 			fields: fields{
 				ws: New("/test/workspace"),
 				files: []*BuildFile{
-					{Path: "/test/workspace/Makefile", Description: "test workspace"},
-					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile"},
-					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile"},
+					{Path: "/test/workspace/Makefile", Description: "test workspace", Label: "//"},
+					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile", Label: "//pkg/mmake"},
+					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile", Label: "//pkg/ffake"},
+					{Path: "/test/workspace/pkg/mmake/mmake2/Makefile", Description: "test makefile", Label: "//pkg/mmake/mmake2"},
 				},
 			},
 			args: args{
 				ctx:    context.Background(),
-				prefix: "//pkg/mmake:",
+				prefix: "//pkg/mmake",
 			},
-			want: []*BuildFile{
-				{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile"},
-				{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile"},
+			want: []string{
+				"//pkg/mmake",
+				"//pkg/mmake/",
 			},
+		},
+		{
+			name: "single slash doesn't crash",
+			fields: fields{
+				ws: New("/test/workspace"),
+				files: []*BuildFile{
+					{Path: "/test/workspace/Makefile", Description: "test workspace", Label: "//"},
+					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile", Label: "//pkg/mmake"},
+					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile", Label: "//pkg/ffake"},
+					{Path: "/test/workspace/pkg/mmake/mmake2/Makefile", Description: "test makefile", Label: "//pkg/mmake/mmake2"},
+				},
+			},
+			args: args{
+				ctx:    context.Background(),
+				prefix: "/",
+			},
+			want:    []string{},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -103,17 +146,17 @@ func TestQuery_genCompFilesByPrefix(t *testing.T) {
 			}
 			got, err := w.genCompFiles(tt.args.ctx, tt.args.prefix)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Query.QueryFilesByPrefix() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Query.genCompFiles() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if len(got) != len(tt.want) {
-				t.Errorf("Query.QueryFilesByPrefix() = %v, want %v", got, tt.want)
+				t.Errorf("Query.genCompFiles() mismatching lengths = %v, want %v", got, tt.want)
 				return
 			}
 			// check each file
 			for i, bf := range got {
 				if !reflect.DeepEqual(bf, tt.want[i]) {
-					t.Errorf("Query.QueryFilesByPrefix() = %v, want %v", bf, tt.want[i])
+					t.Errorf("Query.genCompFiles() = %v, want %v; complete set: %v, want %v", bf, tt.want[i], got, tt.want)
 				}
 			}
 		})
@@ -150,21 +193,6 @@ func TestQuery_GetPackageFromFile(t *testing.T) {
 			},
 			want: "//",
 		},
-		{
-			name: "single slash doesn't",
-			fields: fields{
-				ws: New("/test/workspace"),
-				files: []*BuildFile{
-					{Path: "/test/workspace/Makefile", Description: "test workspace"},
-					{Path: "/test/workspace/pkg/mmake/Makefile", Description: "test makefile"},
-					{Path: "/test/workspace/pkg/ffake/Makefile", Description: "test makefile"},
-				},
-			},
-			args: args{
-				filePath: "/test/workspace/Makefile",
-			},
-			want: "",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -172,7 +200,7 @@ func TestQuery_GetPackageFromFile(t *testing.T) {
 				ws:    tt.fields.ws,
 				files: tt.fields.files,
 			}
-			got, err := q.GetPackageFromFile(tt.args.filePath)
+			got, err := GetPackageFromFile(tt.args.filePath, q.ws.rootPath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Query.GetPackageFromFile() error = %v, wantErr %v", err, tt.wantErr)
 				return

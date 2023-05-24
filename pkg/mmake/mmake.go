@@ -26,10 +26,12 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		target = args[1]
 		if len(args) > 2 {
 			command = args[2]
+		} else {
+			command = "run"
 		}
 	}
 
-	if len(args) > 2 && args[2][:2] == "//" {
+	if command == "" && len(args) > 1 {
 		command = args[1]
 		if len(args) > 2 {
 			target = args[2]

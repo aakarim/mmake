@@ -29,12 +29,14 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		}
 	}
 
-	if command == "" && len(args) > 1 {
+	if len(args) > 2 && args[2][:2] == "//" {
 		command = args[1]
 		if len(args) > 2 {
 			target = args[2]
 		}
-	} else {
+	}
+
+	if target == "" && command == "" {
 		return ErrNoCommand
 	}
 
@@ -99,6 +101,7 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		if err := ws.RunTarget(ctx, target); err != nil {
 			return err
 		}
+		return nil
 	}
 
 	return ErrNoCommand

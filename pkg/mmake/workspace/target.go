@@ -53,11 +53,22 @@ func getTargetName(target string) string {
 	return target
 }
 
-func (w *Workspace) getBuildFile(ctx context.Context, target string) (string, error) {
+func getPackageName(target string) string {
 	// strip out leading '//'
 	target = target[2:]
 	// split on ':'
-	target = strings.Split(target, ":")[0]
+	return strings.Split(target, ":")[0]
+}
+
+func getRelPathFromTarget(target string) string {
+	// strip out leading '//'
+	target = target[2:]
+	// split on ':'
+	return strings.Split(target, ":")[0]
+}
+
+func (w *Workspace) getBuildFile(ctx context.Context, target string) (string, error) {
+	target = getRelPathFromTarget(target)
 
 	targetFilePath := ""
 	// check if Makefile exists in dir

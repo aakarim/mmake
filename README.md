@@ -53,7 +53,13 @@ Mono Make will automatically inject environment variables into your Makefiles. I
 - `MM_OUT_PATH` - The path to the build output directory for the 
 current target
 
-You can use these environment variables to access folders managed by MMake, and 
+You can use these environment variables to access folders managed by MMake.
+
+### Target generation
+```bash
+mmake //services/api:svc -- go run ./services/api
+```
+Will first test whether //services/api:svc exists, if it does not it will import the command after the `--` and save it to a Makefile located at `//services/api` with the target `svc`. It will then run the target.
 
 ### Automatic Makefile inclusion
 MMake automatically includes Makefiles from the current and child directories.

@@ -58,6 +58,13 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		return err
 	}
 
+	if target != "" && workspace.HasCommandToImport(args) {
+		if err := ws.Import(ctx, target, args); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	if command == "clean" {
 		if err := ws.Clean(ctx, target); err != nil {
 			return err

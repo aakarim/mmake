@@ -14,3 +14,6 @@ deploy: build
 	cat $(MM_OUT_PATH)/config.yaml
 
 .PHONY: show-vars build deploy
+
+svc:
+	go run ./services/api/cmd

@@ -5,17 +5,21 @@ Mono Make (MMake) is a simple monorepo task runner based on top of Make. It help
 
 Think of it as all the discoverability and tooling of a build system like Bazel, but without the headaches of having to learn a new build system. 
 
-The goals here are to:
-- Make it easy to discover and run targets.
-- Distribute Makefiles across various files and directories without needing to have a central Makefile to control them all or remember where they are.
-- Enable scripts to run anywhere within your monorepo without using relative paths.
-- Manage build outputs & code generation.
-- Adopt incrementally.
-
 ## Motivation
 Despite the capabilities of Make, managing multiple Makefiles in monorepos can be complicated. MMake helps you distribute Makefiles across multiple files and directories. It automatically includes these files, inserts variables pointing to common directories for build outputs, and provides autocomplete for targets.
 
 If you're setting up a monorepo and need a unified script handling tool, MMake could be useful. It's also beneficial if you're using Make and looking to distribute your Makefiles across disparate directories.
+
+The goals here are to:
+- Improve developer workflow by making it easy to discover and run targets.
+- Distribute Makefiles across various files and directories without needing to have a central Makefile to control them all or remember where they are.
+- Enable scripts to run anywhere within your monorepo without using relative paths.
+- Manage build outputs & code generation.
+- Adopt incrementally and be language agnostic.
+
+The non-goals are:
+- Making a fully fledged build system. MMake is meant to be a simple tool to help you manage your repository, not a replacement for Bazel or Pants.
+- Replacing Make. MMake is built on top of Make, and is meant to be used alongside it. You can still use Make to run your Makefiles, but MMake provides a few extra features to make your life easier.
 
 ## Installation
 Requirements:

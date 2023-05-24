@@ -27,7 +27,6 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		if len(args) > 2 {
 			command = args[2]
 		}
-		return nil
 	}
 
 	if command == "" && len(args) > 1 {

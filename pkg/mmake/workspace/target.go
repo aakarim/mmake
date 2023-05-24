@@ -2,11 +2,15 @@ package workspace
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/aakarim/mmake/pkg/mmake/makefile"
 )
 
 func (w *Workspace) RunTarget(ctx context.Context, target string) error {
@@ -81,6 +85,41 @@ func (w *Workspace) getBuildFile(ctx context.Context, target string) (string, er
 	return filepath.Abs(targetFilePath)
 }
 
+func (w *Workspace) GetInfo(ctx context.Context, target string) (string, error) {
+	bf, err := w.getBuildFile(ctx, target)
+	if err != nil {
+		return "", fmt.Errorf("get build file: %w", err)
+	}
+
+	// load build file and get info
+	f, err := os.Open(bf)
+	if err != nil {
+		return "", fmt.Errorf("open build file: %w", err)
+	}
+	defer f.Close()
+
+	targetName := getTargetName(target)
+
+	t := makefile.GetTarget(targetName, f)
+	if t == nil {
+		return "", fmt.Errorf("target not found: %s", targetName)
+	}
+	if t.Body != "" {
+		// if the first line is a comment, show the comment until the first blank line
+		if strings.HasPrefix(t.Body, "#") {
+			lines := strings.Split(t.Body, "\n")
+			for i, l := range lines {
+				if l == "" {
+					t.Body = strings.Join(lines[:i], "\n")
+					break
+				}
+			}
+		}
+		return t.Body, nil
+	}
+	return "no target body", nil
+}
+
 func (w *Workspace) buildEnv(targetFilePath string) ([]string, error) {
 	rel, err := filepath.Rel(w.rootPath, filepath.Dir(targetFilePath))
 	if err != nil {
@@ -101,7 +140,7 @@ func (w *Workspace) buildEnv(targetFilePath string) ([]string, error) {
 
 func (w *Workspace) Clean(ctx context.Context, label string) error {
 	if label == "" {
-		return nil
+		return errors.New("you must specify a label to clean")
 	}
 
 	// strip out leading '//'

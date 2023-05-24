@@ -48,13 +48,15 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Fprintf(os.Stderr, "Usage of %s [target | command]:\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage of %s [target | command] [target | command]:\n", os.Args[0])
 
 	flag.PrintDefaults()
 
 	fmt.Fprintf(os.Stderr, "\nCommands:\n")
 	fmt.Fprintf(os.Stderr, "  init\t\tInitialize a new workspace\n")
 	fmt.Fprintf(os.Stderr, "  completion\tPrint the completion script\n")
-	fmt.Fprintf(os.Stderr, "  //[path]:target\tRun a specific target\n")
+	fmt.Fprintf(os.Stderr, "  clean\tRemove the package's build artifacts folder\n")
+	fmt.Fprintf(os.Stderr, "  info\tRetrieve information about target\n")
+	fmt.Fprintf(os.Stderr, "  //[path]:[target]\tRun a specific target\n")
 	fmt.Fprintf(os.Stderr, "\n")
 }

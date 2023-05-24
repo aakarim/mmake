@@ -91,7 +91,7 @@ func ParseMakefile(file io.Reader) (*Makefile, error) {
 		}
 
 		// if the line contains a string up until ': ' or ':\n' then it is a target
-		if (strings.Contains(scanned, ": ") || strings.Contains(scanned, ":")) && !strings.Contains(scanned, " :") {
+		if isTarget(scanned) {
 			target := strings.Split(scanned, ":")[0]
 			mf.Targets = append(mf.Targets, target)
 		}
@@ -104,4 +104,85 @@ func ParseMakefile(file io.Reader) (*Makefile, error) {
 	}
 
 	return &mf, nil
+}
+
+func isTarget(str string) bool {
+	// if the line contains a string up until ': ' or ':\n' then it is a target
+	if (strings.Contains(str, ": ") || strings.Contains(str, ":")) && !strings.Contains(str, " :") {
+		return true
+	}
+	return false
+}
+
+func GetTarget(name string, f io.Reader) *Target {
+	scan := bufio.NewScanner(f)
+	var target *Target
+	for scan.Scan() {
+		scanned := scan.Text()
+		if len(scanned) == 0 {
+			continue
+		}
+		if target != nil {
+			// if we've reached the end of the target, return it
+			if scanned[0] != '\t' {
+				return target
+			}
+
+			target.Body += scanned + "\n"
+			continue
+		}
+
+		if scanned[0] == '#' {
+			continue
+		}
+		if scanned[0] == '.' {
+			continue
+		}
+		if scanned[0] == '\t' {
+			continue
+		}
+		if scanned[0] == ' ' {
+			continue
+		}
+		if scanned[0] == '\n' {
+			continue
+		}
+		if scanned[0] == '\r' {
+			continue
+		}
+
+		// check if this is an internal target
+		for _, internalTarget := range internalTargets {
+			if scanned == internalTarget {
+				continue
+			}
+		}
+
+		// check if this is a variable
+		if scanned[0] == '$' {
+			continue
+		}
+
+		// check if this is a function
+		if scanned[0] == '%' {
+			continue
+		}
+
+		// if the line contains a string up until ': ' or ':\n' then it is a target
+		if isTarget(scanned) {
+			targetName := strings.Split(scanned, ":")[0]
+			if targetName == name {
+				target = &Target{
+					Name: name,
+				}
+			}
+		}
+	}
+
+	return target
+}
+
+type Target struct {
+	Name string
+	Body string
 }

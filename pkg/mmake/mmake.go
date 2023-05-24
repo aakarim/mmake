@@ -18,7 +18,19 @@ func New() *MMake {
 }
 
 func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error {
-	if len(os.Args) > 1 && os.Args[1] == "init" {
+	var target string
+	var command string
+
+	// if args[1] starts with '//' then it's a target
+	if len(args) > 1 && args[1][:2] == "//" {
+		target = args[1]
+		if len(args) > 2 {
+			command = args[2]
+		}
+		return nil
+	}
+
+	if command == "init" {
 		if err := m.Init(ctx); err != nil {
 			panic(err)
 		}
@@ -34,24 +46,39 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		return err
 	}
 
-	// if args[1] starts with '//' then it's a target
-	if len(args) > 1 && args[1][:2] == "//" {
-		target := args[1]
-		if err := ws.RunTarget(ctx, target); err != nil {
+	if command == "" && len(args) > 1 {
+		command = args[1]
+		if len(args) > 2 {
+			target = args[2]
+		}
+	} else {
+		return ErrNoCommand
+	}
+
+	if command == "clean" {
+		if err := ws.Clean(ctx, target); err != nil {
 			return err
 		}
 		return nil
 	}
 
-	// if args[1] is "completion" then we want to print the completion script
-	if len(args) > 1 && args[1] == "completion" {
+	if command == "info" {
+		info, err := ws.GetInfo(ctx, target)
+		if err != nil {
+			return err
+		}
+		fmt.Println(target, "info:")
+		fmt.Println(info)
+		return nil
+	}
+
+	if command == "completion" {
 		fmt.Println(completion.GetCompletionScript(workspacePath))
 		return nil
 	}
 
-	// if args[1] is "compgen" then we want to complete the input
-	if len(args) > 1 && args[1] == "compgen" {
-		prefix := args[2]
+	if command == "compgen" {
+		prefix := target
 		qu := workspace.NewQuery(ws, prefix)
 		if err := qu.Update(ctx, 2); err != nil {
 			return err
@@ -69,12 +96,10 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		return nil
 	}
 
-	// if args[1] is "clean" then we want to clean the target dir
-	if len(args) > 1 && args[1] == "clean" {
-		if err := ws.Clean(ctx, args[2]); err != nil {
+	if command == "run" || command == "" {
+		if err := ws.RunTarget(ctx, target); err != nil {
 			return err
 		}
-		return nil
 	}
 
 	return ErrNoCommand

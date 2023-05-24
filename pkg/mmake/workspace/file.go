@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aakarim/mmake/pkg/mmake/makefile"
+	"github.com/aakarim/mmake/internal/makefile"
 )
 
 type Label string

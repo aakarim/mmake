@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aakarim/mmake/pkg/mmake/makefile"
+	"github.com/aakarim/mmake/internal/makefile"
 )
 
 func (w *Workspace) RunTarget(ctx context.Context, target string) error {

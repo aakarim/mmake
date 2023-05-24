@@ -30,6 +30,15 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		return nil
 	}
 
+	if command == "" && len(args) > 1 {
+		command = args[1]
+		if len(args) > 2 {
+			target = args[2]
+		}
+	} else {
+		return ErrNoCommand
+	}
+
 	if command == "init" {
 		if err := m.Init(ctx); err != nil {
 			panic(err)
@@ -44,15 +53,6 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 
 	if err := ws.Init(ctx); err != nil {
 		return err
-	}
-
-	if command == "" && len(args) > 1 {
-		command = args[1]
-		if len(args) > 2 {
-			target = args[2]
-		}
-	} else {
-		return ErrNoCommand
 	}
 
 	if command == "clean" {

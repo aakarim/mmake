@@ -16,7 +16,7 @@ var ErrTargetExists = errors.New("target already exists")
 // will return true.
 func HasCommandToImport(args []string) bool {
 	j := strings.Join(args, " ")
-	return strings.Contains(j, "--")
+	return strings.Contains(j, " -- ")
 }
 
 func GetImportedCommand(args []string) string {
@@ -29,7 +29,10 @@ func (w *Workspace) Import(ctx context.Context, target string, args []string) er
 	// first check if there is a build file at the target
 	targetFilePath, err := w.getBuildFile(ctx, target)
 	if err != nil && !errors.Is(err, ErrNoMakefileFound) {
-		return err
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("error opening directory, please ensure it exists: %w", err)
+		}
+		return fmt.Errorf("get build file: %w", err)
 	}
 	// if no build file create
 	if errors.Is(err, ErrNoMakefileFound) {

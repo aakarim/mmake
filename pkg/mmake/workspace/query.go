@@ -96,16 +96,17 @@ func (q *Query) GenComp(ctx context.Context, prefix string) (string, error) {
 		return "", err
 	}
 
-	bf := q.GetFileByLabel(Label(prefix))
-	if bf != nil {
-		label, targets, err := q.genCompTargets(ctx, prefix+":")
-		if err != nil {
-			return "", err
-		}
-		for _, v := range targets {
-			completions = append(completions, fmt.Sprintf("%s:%s", string(label), v))
-		}
-	}
+	// TODO: do we want to append targets?
+	// bf := q.GetFileByLabel(Label(prefix))
+	// if bf != nil {
+	// 	label, targets, err := q.genCompTargets(ctx, prefix+":")
+	// 	if err != nil {
+	// 		return "", err
+	// 	}
+	// 	for _, v := range targets {
+	// 		completions = append(completions, fmt.Sprintf("%s:%s", string(label), v))
+	// 	}
+	// }
 
 	var outputStr string
 	for _, completion := range completions {

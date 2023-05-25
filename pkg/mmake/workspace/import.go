@@ -70,8 +70,15 @@ func (w *Workspace) Import(ctx context.Context, target string, args []string) er
 	}
 
 	// add target to build file/
+	importedCommand := GetImportedCommand(args)
+	transformedCommand, err := w.transformCommandToRelative(targetFilePath, importedCommand)
+	if err != nil {
+		return fmt.Errorf("transform command: %w", err)
+	}
+
+	// replace paths with relative paths to environment variables
 	if err := bf.CreateTarget(targetName,
-		strings.NewReader(GetImportedCommand(args))); err != nil {
+		strings.NewReader(transformedCommand)); err != nil {
 		return fmt.Errorf("create target: %w", err)
 	}
 
@@ -80,4 +87,36 @@ func (w *Workspace) Import(ctx context.Context, target string, args []string) er
 		return fmt.Errorf("run target: %w", err)
 	}
 	return nil
+}
+
+func (w *Workspace) transformCommandToRelative(targetFilePath string, command string) (string, error) {
+	env, err := w.buildEnv(targetFilePath)
+	if err != nil {
+		return "", fmt.Errorf("build env: %w", err)
+	}
+	// get any relative paths in the file
+	spl := strings.Split(command, " ")
+	for i, s := range spl {
+		if strings.HasPrefix(s, "./") {
+			// get the current directory
+			dir, err := os.Getwd()
+			if err != nil {
+				return command, fmt.Errorf("get current directory: %w", err)
+			}
+			absPath := filepath.Join(dir, s)
+			mmPath := strings.Split(env[1], "=")[1]
+			if strings.HasPrefix(absPath, mmPath) {
+				newPath := strings.Replace(absPath, mmPath, "${MM_PATH}", 1)
+				spl[i] = newPath
+				break
+			}
+			if strings.HasPrefix(absPath, w.rootPath) {
+				newPath := strings.Replace(absPath, w.rootPath, "${MM_ROOT}", 1)
+				spl[i] = newPath
+				break
+			}
+		}
+	}
+	// just return the command as it was
+	return strings.Join(spl, " "), nil
 }

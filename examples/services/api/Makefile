@@ -15,5 +15,6 @@ deploy: build
 
 .PHONY: show-vars build deploy
 
+
 svc:
-	go run ./services/api/cmd
+	go run ${MM_PATH}/cmd

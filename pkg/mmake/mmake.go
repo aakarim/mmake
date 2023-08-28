@@ -65,6 +65,15 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		return nil
 	}
 
+	if command == "vars" {
+		fmt.Println("MM_ROOT = path to WORKSPACE.mmake")
+		fmt.Println("MM_PATH = path to package directory")
+		fmt.Println("MM_OUT_ROOT = path to output directory root")
+		fmt.Println("MM_OUT_PATH = path to package output directory")
+		fmt.Println("WS_ROOT = path to the root of the workspace (where the WORKSPACE.make file is located)")
+		return nil
+	}
+
 	if command == "clean" {
 		if err := ws.Clean(ctx, target); err != nil {
 			return err

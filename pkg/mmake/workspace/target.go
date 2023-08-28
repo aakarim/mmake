@@ -146,6 +146,7 @@ func (w *Workspace) buildEnv(targetFilePath string) ([]string, error) {
 		"MM_PATH=" + filepath.Join(w.rootPath, rel),
 		"MM_OUT_ROOT=" + path.Join(w.rootPath, BuildDir),
 		"MM_OUT_PATH=" + buildTargetDir,
+		"WS_ROOT=" + w.rootPath,
 	}, nil
 }
 

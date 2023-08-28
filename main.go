@@ -57,6 +57,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  completion\tPrint the completion script\n")
 	fmt.Fprintf(os.Stderr, "  clean\tRemove the package's build artifacts folder\n")
 	fmt.Fprintf(os.Stderr, "  info\tRetrieve information about target\n")
+	fmt.Fprintf(os.Stderr, "  vars\tPrint all the vars available to a script\n")
 	fmt.Fprintf(os.Stderr, "  //[path]:[target]\tRun a specific target\n")
 	fmt.Fprintf(os.Stderr, "\n")
 }

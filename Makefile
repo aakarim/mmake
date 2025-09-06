@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 test:
-	go build ./...
+	go build ./... -o /dev/null
 	go test ./...
 dev_install:
 	go install .

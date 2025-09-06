@@ -99,6 +99,7 @@ func ParseBuildFile(path string, rootDir string) (*BuildFile, error) {
 // using the reader as the content of the target
 // if the target already exists, then it will throw an error.
 // opens a file handle to the build file.
+// TODO: this should probably call a method on a Makefile
 func (bf *BuildFile) CreateTarget(name string, targetBody io.Reader) error {
 	f, err := os.OpenFile(bf.Path, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
@@ -119,6 +120,15 @@ func (bf *BuildFile) CreateTarget(name string, targetBody io.Reader) error {
 	builder.Write([]byte(":\n\t"))
 	builder.Write(b)
 	builder.Write([]byte("\n"))
+
+	// if the target is phony, then add it to the .PHONY target
+	// TODO: merge with existing .PHONY target
+	phony := true
+	if phony {
+		builder.Write([]byte(".PHONY: "))
+		builder.Write([]byte(name))
+		builder.Write([]byte("\n"))
+	}
 
 	if _, err := f.Write([]byte(builder.String())); err != nil {
 		return fmt.Errorf("write to build file: %w", err)

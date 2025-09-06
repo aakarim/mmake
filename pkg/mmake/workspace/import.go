@@ -9,7 +9,13 @@ import (
 	"strings"
 )
 
-var ErrTargetExists = errors.New("target already exists")
+type ErrTargetExists struct {
+	Target string
+}
+
+func (e *ErrTargetExists) Error() string {
+	return fmt.Sprintf("target `%s` already exists", e.Target)
+}
 
 // HasCommandToImport returns true if the args contain a command to import a target
 // e.g. mmake //services/api:api -- go run ./services/api
@@ -69,7 +75,7 @@ func (w *Workspace) Import(ctx context.Context, target string, args []string) er
 	}
 	// if there is then throw an error
 	if hasTarget {
-		return ErrTargetExists
+		return &ErrTargetExists{Target: targetName}
 	}
 
 	// add target to build file/

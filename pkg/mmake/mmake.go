@@ -42,6 +42,11 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		return ErrNoCommand
 	}
 
+	if command == "completion" {
+		fmt.Println(completion.GetCompletionScript())
+		return nil
+	}
+
 	if command == "init" {
 		if err := m.Init(ctx); err != nil {
 			panic(err)
@@ -88,11 +93,6 @@ func (m *MMake) Run(ctx context.Context, inputPath string, args ...string) error
 		}
 		fmt.Println(target, "info:")
 		fmt.Println(info)
-		return nil
-	}
-
-	if command == "completion" {
-		fmt.Println(completion.GetCompletionScript(workspacePath))
 		return nil
 	}
 

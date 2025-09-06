@@ -11,11 +11,8 @@ _mmake__complete() {
 
   # If the current word is a known command, then we can get a list of possible completions for it.
   if [[ "$prev" == "mmake" ]]; then
-    mmake compgen $cur -w {{.WorkspaceDir}}/WORKSPACE.mmake
+    mmake compgen $cur 
   fi
 }
 
-echo "Loading mmake completion..."
 complete -F _mmake__complete -o nospace "mmake"
-echo "Done."
-

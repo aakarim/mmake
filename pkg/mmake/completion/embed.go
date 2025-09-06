@@ -8,5 +8,4 @@ import (
 var completionScript string
 
 type templateVars struct {
-	WorkspaceDir string
 }
